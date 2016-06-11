@@ -4,8 +4,6 @@ from __future__ import print_function
 
 from tensorflow.python.platform import gfile
 from collections import Counter
-from data_utils import pre_pad
-from data_utils import post_pad
 
 
 _PAD = b"_PAD"
@@ -18,6 +16,18 @@ PAD_ID = 0
 EOS_ID = 1
 EOD_ID = 2
 UNK_ID = 3
+
+
+def pre_pad(lst, pad_elt, max_len):
+    nlst = [pad_elt]*max_len
+    nlst[(max_len - len(lst)):] = lst
+    return nlst
+
+
+def post_pad(lst, pad_elt, max_len):
+    nlst = [pad_elt]*max_len
+    nlst[:len(lst)] = lst
+    return nlst
 
 
 def load_dictionary(dictionary_path):
