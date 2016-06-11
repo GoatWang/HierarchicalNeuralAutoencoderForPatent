@@ -8,7 +8,7 @@ import numpy as np
 import os
 
 
-class HeirarchicalAutoencoder(object):
+class HierarchicalAutoencoder(object):
     def __init__(self, vocab, max_sent_len, max_doc_len, size=128, batch_size=1,
                  checkpoint_dir="checkpoint"):
         #self.sess       = sess

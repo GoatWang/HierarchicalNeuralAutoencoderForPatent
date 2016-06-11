@@ -1,7 +1,7 @@
 from __future__ import division
 from __future__ import print_function
 
-from models.heir_autoencoder import HeirarchicalAutoencoder as HAE
+from models.hier_autoencoder import HierarchicalAutoencoder as HAE
 from paper_data_utils import create_vocabulary
 from paper_data_utils import initialize_vocabulary
 from paper_data_utils import data_iterator
