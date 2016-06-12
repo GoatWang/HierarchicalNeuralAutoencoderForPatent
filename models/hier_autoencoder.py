@@ -1,24 +1,25 @@
 from __future__ import division
 from __future__ import print_function
 
-from tensorflow.models.rnn.rnn_cell import BasicLSTMCell
-
 import tensorflow as tf
 import numpy as np
 import os
 
+BasicLSTMCell = tf.nn.rnn_cell.BasicLSTMCell
+
 
 class HierarchicalAutoencoder(object):
     def __init__(self, vocab, max_sent_len, max_doc_len, size=128, batch_size=1,
-                 checkpoint_dir="checkpoint"):
+                 num_samples=512, checkpoint_dir="checkpoint"):
         #self.sess       = sess
         self.size           = size
         self.batch_size     = batch_size
-        self.checkpoint_dir = checkpoint_dir
         self.vocab          = vocab
         self.vocab_size     = len(vocab)
         self.sent_steps     = max_sent_len
         self.doc_steps      = max_doc_len
+        self.num_samples    = num_samples
+        self.checkpoint_dir = checkpoint_dir
         #self.data_file  = os.path.join(data_dir, data_file)
         #self.vocab_file = os.path.join(data_dir, "vocab")
         #self.vocab_size = max_vocab_size
@@ -41,11 +42,12 @@ class HierarchicalAutoencoder(object):
         self.output_data = tf.placeholder(tf.int32, [self.batch_size,
                                                      self.doc_steps,
                                                      self.sent_steps])
-        self.embedding = tf.get_variable("embedding", [self.vocab_size, self.size])
-        self.inputs = []
-        for s in range(self.doc_steps):
-            self.inputs.append(tf.nn.embedding_lookup(self.embedding,
-                                                      self.input_data[:,s,:]))
+        with tf.device("/cpu:0"):
+            self.embedding = tf.get_variable("embedding", [self.vocab_size, self.size])
+            self.inputs = []
+            for s in range(self.doc_steps):
+                self.inputs.append(tf.nn.embedding_lookup(self.embedding,
+                                                          self.input_data[:,s,:]))
         # ENCODE
         # TODO: make this multi-layer
         self.encode_word_cell = BasicLSTMCell(self.size)
@@ -75,10 +77,10 @@ class HierarchicalAutoencoder(object):
         self.decode_sent_cell = BasicLSTMCell(self.size)
         self.decode_word_cell = BasicLSTMCell(self.size)
 
-        sent_decode = tf.zeros((self.batch_size, self.size))
-        sent_state  = self._build_zero_state(doc_encode)
-        self.logits = []
-        self.word_decodes = []
+        sent_decode  = tf.zeros((self.batch_size, self.size))
+        sent_state   = self._build_zero_state(doc_encode)
+        self.logits  = []
+        word_decodes = []
 
         with tf.variable_scope("decode_RNN_sentence"):
             for t1 in range(self.doc_steps):
@@ -98,22 +100,32 @@ class HierarchicalAutoencoder(object):
                                                                           word_state)
                         word_decode = cell_output
 
-                        w = tf.get_variable("w", [self.size, self.vocab_size])
-                        b = tf.get_variable("b", [self.vocab_size])
-                        logit = tf.matmul(cell_output, w) + b
-                        self.logits.append(logit)
+                        word_decodes.append(word_decode)
+                        #w = tf.get_variable("w", [self.size, self.vocab_size])
+                        #b = tf.get_variable("b", [self.vocab_size])
+                        #logit = tf.matmul(cell_output, w) + b
+                        #self.logits.append(logit)
 
                     sent_state = word_state
+
+        w = tf.get_variable("w", [self.size, self.vocab_size])
+        b = tf.get_variable("b", [self.vocab_size])
+        def sampled_loss(inputs, labels):
+            labels = tf.reshape(labels, [-1, 1])
+            return tf.nn.sampled_softmax_loss(tf.transpose(w), b, inputs,
+                                              labels, self.num_samples,
+                                              self.vocab_size)
 
         targets = tf.reshape(self.output_data, [self.batch_size,
                                                 self.doc_steps*self.sent_steps])
         targets = [targets[:,i] for i in range(self.doc_steps*self.sent_steps)]
         weights = [tf.ones([self.batch_size]) for _ in range(self.doc_steps*self.sent_steps)]
-        loss    = tf.nn.seq2seq.sequence_loss_by_example(self.logits, targets, weights)
+        loss    = tf.nn.seq2seq.sequence_loss_by_example(word_decodes, targets, weights,
+                                                         softmax_loss_function=sampled_loss)
 
         self.cost  = tf.reduce_sum(loss)/self.batch_size
-        _          = tf.scalar_summary("cost", self.cost)
         self.optim = tf.train.GradientDescentOptimizer(0.01).minimize(self.cost)
+        tf.scalar_summary("cost", self.cost)
 
         #self.lr   = tf.Variable(0.0, trainable=False)
         #tvars     = tf.trainable_variables()
