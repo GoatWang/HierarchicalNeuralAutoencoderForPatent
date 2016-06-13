@@ -107,12 +107,15 @@ class HierarchicalAutoencoder(object):
 
                 word_decode = tf.zeros((self.batch_size, self.size))
                 word_state  = self._build_zero_state(sent_decode)
-                for t2 in range(self.sent_steps):
-                    if t2 > 0: tf.get_variable_scope().reuse_variables()
-                    (cell_output, word_state) = self.decode_word_cell(word_decode,
-                                                                      word_state)
-                    word_decode = cell_output
-                    word_decodes.append(word_decode)
+                with tf.variable_scope("decode_RNN_word"):
+                    for t2 in range(self.sent_steps):
+                        if t2 > 0: tf.get_variable_scope().reuse_variables()
+                        (cell_output, word_state) = self.decode_word_cell(word_decode,
+                                                                          word_state)
+                        word_decode = cell_output
+                        word_decodes.append(word_decode)
+
+                    sent_state = word_state
 
         targets = tf.reshape(self.output_data, [self.batch_size,
                                                 self.doc_steps*self.sent_steps])
