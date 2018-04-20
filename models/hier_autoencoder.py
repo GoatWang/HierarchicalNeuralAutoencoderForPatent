@@ -5,14 +5,14 @@ import tensorflow as tf
 import numpy as np
 import os
 
-BasicLSTMCell = tf.nn.rnn_cell.BasicLSTMCell
-
+# BasicLSTMCell = tf.nn.rnn_cell.BasicLSTMCell
+BasicLSTMCell = tf.contrib.rnn.BasicLSTMCell
 
 class HierarchicalAutoencoder(object):
     def __init__(self, vocab, max_sent_len, max_doc_len, size=128, batch_size=1,
                  num_samples=512, checkpoint_dir="checkpoint"):
         #self.sess       = sess
-        self.size           = size
+        self.size           = size     # vector length for a word
         self.batch_size     = batch_size
         self.vocab          = vocab
         self.vocab_size     = len(vocab)

@@ -75,7 +75,7 @@ def create_vocabulary(vocab_path, data_path, max_vocab):
     vocab = {}
     with gfile.GFile(data_path, mode="rb") as f:
         doc_len = 0
-        for line in f:
+        for idx, line in enumerate(f):
             if line.strip() == "":
                 if doc_len > max_doc_len:
                     max_doc_len = doc_len
@@ -93,12 +93,17 @@ def create_vocabulary(vocab_path, data_path, max_vocab):
                         vocab[w] += 1
                     else:
                         vocab[w] = 1
+
+            if idx % 1000 == 0:
+                print(idx, 'document has benn preprocessed')
+                
         if doc_len > max_doc_len:
             max_doc_len = doc_len
 
         vocab_list = _START_VOCAB + sorted(vocab, key=vocab.get, reverse=True)
         if len(vocab_list) > max_vocab:
             vocab_list = vocab_list[:max_vocab]
+
         with gfile.GFile(vocab_path, mode="wb") as f:
             for w in vocab_list:
                 f.write(w + b"\n")
